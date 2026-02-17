@@ -25,10 +25,30 @@ Scripts/
 
 ## List of Active Agents
 
-| Agent Name     | Description                                 | Folder            | Status     |
-| :------------- | :------------------------------------------ | :---------------- | :--------- |
-| File Organizer | Categorizes files into folders by extension | `file-organizer/` | ✅ Active  |
-| _Next Agent_   | _Awaiting your next request_                | `tbd/`            | 🚧 Planned |
+| Agent Name                | Description                                         | Folder                        | Status         |
+| :------------------------ | :-------------------------------------------------- | :---------------------------- | :------------- |
+| Automated Email           | Sends emails to multiple recipients via Python      | `automated_email/`            | ✅ Active      |
+| Battery Notification      | Windows battery low/full alerts                     | `Battery_notification/`       | ✅ Active      |
+| File Organizer            | Categorizes files into folders by extension         | `file-organizer/`             | ✅ Active      |
+| Image Compressor          | Compresses images while maintaining quality         | `Image_Compressor/`           | ✅ Active      |
+| Images to PDF             | Converts ordered images into a PDF document         | `images2pdf/`                 | ✅ Active      |
+| Movie Sync                | Syncs missing movies from competitors to DB         | `movie-sync/`                 | 🚧 In Progress |
+| Random Password Gen       | Generates secure, random passwords                  | `Random_Password_Generator/`  | ✅ Active      |
+| Remove Duplicate Files    | Finds and removes duplicate files                   | `Remove-Duplicate-Files/`     | ✅ Active      |
+| Subtitle Downloader       | Automatically downloads subtitles for movies         | `Subtitle-downloader/`        | ✅ Active      |
+| Take Screenshot           | Captures screenshots using OpenCV                   | `Take_screenshot/`            | ✅ Active      |
+| Task Scheduler            | CLI task management with due dates                  | `Task-Scheduler/`             | ✅ Active      |
+| To Do Bot                 | Telegram bot for task management                    | `To Do Bot/`                  | ✅ Active      |
+| URL Shortener             | Shortens long URLs using web scraping               | `url_shortener/`              | ✅ Active      |
+| Website Blocker           | Blocks distracting sites during work hours          | `Website-Blocker/`            | ✅ Active      |
+| Website URL Detector      | Detects and logs all URLs on a website              | `Website_Url_Detector/`       | ✅ Active      |
+| Wifi Password             | Views saved Wi-Fi passwords                         | `Wifi-Password/`              | ✅ Active      |
+| Wikipedia Search          | Searches Wikipedia and returns info                 | `Wikipedia-Search/`           | ✅ Active      |
+| X Scrapper                | Scrapes tweets from specified X handle              | `X_Scrapper/`                 | ✅ Active      |
+| Youtube Downloader        | Downloads YouTube videos using pytube               | `Youtube_Video_Downloader/`   | ✅ Active      |
+| YTS Torrents              | Downloads movie torrents via Yify API               | `yts_torrents/`               | ✅ Active      |
+| Zip Password Cracker      | Dictionary attack on ZIP file passwords             | `zip_password_cracker/`       | ✅ Active      |
+| _Next Agent_              | _Awaiting your next request_                        | `tbd/`                        | 🚧 Planned     |
 
 ## How to Add a New Agent
 
