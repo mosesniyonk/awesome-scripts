@@ -1,86 +1,172 @@
 import os
-import string
-from pytube import Playlist, YouTube
-from moviepy.editor import AudioFileClip
+import sys
+import shutil
+from yt_dlp import YoutubeDL
+
+QUALITY_CHOICES = {
+    "360p": 360,
+    "480p": 480,
+    "720p": 720,
+    "1080p": 1080,
+    "4k": 2160,
+    "8k": 4320,
+}
 
 
-def MP4ToMP3(mp4, mp3):
-    FILETOCONVERT = AudioFileClip(mp4)
-    FILETOCONVERT.write_audiofile(mp3)
-    FILETOCONVERT.close()
+def is_playlist_url(url):
+    return "/playlist" in url or ("list=" in url and "v=" not in url)
 
-def download_youtube_video(url, folder_path, quality, media_type,j):
-    # Create a YouTube object
-    yt = YouTube(url)
-    # Remove invalid characters from the title
-    valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
-    title = ''.join(c for c in yt.title if c in valid_chars)
 
-    # Get the streams based on the media type
-    if media_type == 'audio':
-        audio_stream = yt.streams.get_audio_only()
-        # Check if the stream is not None
-        if audio_stream is not None:
-            # Download the stream
-            try:
-                print(f"Downloading...")
-                audio_stream.download(output_path=folder_path, filename="temp_file.mp4")
-                print(f"Download completed!")
+def parse_quality(quality):
+    if not quality:
+        return QUALITY_CHOICES["720p"]
 
-                input_file = os.path.join(folder_path, f"temp_file.mp4")
-                output_file = os.path.join(folder_path, f"{title}.mp3")
-                print("Converting to mp3...")
-                MP4ToMP3(input_file, output_file)
-                print("Conversion completed!")
-                
-                os.rename(output_file,f'{folder_path}\{title}.mp3')
-                os.remove(input_file)
-            
-            except Exception as e:
-                print(e) 
-        else:
-            print("No audio stream was found.")
+    normalized = quality.strip().lower()
+    if normalized in QUALITY_CHOICES:
+        return QUALITY_CHOICES[normalized]
+    if normalized.endswith("p"):
+        normalized = normalized[:-1]
+    if normalized.isdigit():
+        return int(normalized)
+    raise ValueError("Choose one of: 360p, 480p, 720p, 1080p, 4k, 8k.")
 
+
+def format_quality_label(quality_height):
+    if quality_height == 2160:
+        return "4k"
+    if quality_height == 4320:
+        return "8k"
+    return f"{quality_height}p"
+
+
+def prompt_quality():
+    quality_prompt = (
+        "Enter the quality of the video "
+        "(360p, 480p, 720p, 1080p, 4k, 8k) [default: 720p]: "
+    )
+    return input(quality_prompt).strip() or "720p"
+
+
+def get_available_video_heights(url):
+    options = {
+        "quiet": True,
+        "no_warnings": True,
+        "skip_download": True,
+    }
+
+    with YoutubeDL(options) as ydl:
+        info = ydl.extract_info(url, download=False)
+
+    heights = set()
+    for fmt in info.get("formats", []):
+        if fmt.get("vcodec") != "none" and fmt.get("height"):
+            heights.add(fmt["height"])
+
+    return heights
+
+
+def format_eta(seconds):
+    if seconds is None:
+        return "--:--"
+
+    seconds = max(0, int(seconds))
+    hours, remainder = divmod(seconds, 3600)
+    minutes, secs = divmod(remainder, 60)
+    if hours:
+        return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+    return f"{minutes:02d}:{secs:02d}"
+
+
+def build_progress_bar(percent):
+    columns = shutil.get_terminal_size((80, 20)).columns
+    bar_width = max(8, min(12, columns - 38))
+    filled = min(bar_width, int(percent / 100 * bar_width))
+    return "[" + ("█" * filled) + ("░" * (bar_width - filled)) + "]"
+
+
+def download_progress_hook(progress):
+    if progress.get("status") == "downloading":
+        total = progress.get("total_bytes") or progress.get("total_bytes_estimate")
+        downloaded = progress.get("downloaded_bytes", 0)
+        percent = (downloaded / total * 100) if total else 0
+        eta = format_eta(progress.get("eta"))
+        speed = progress.get("speed")
+        speed_text = "--"
+        if speed:
+            units = ["B/s", "KiB/s", "MiB/s", "GiB/s"]
+            value = float(speed)
+            unit_index = 0
+            while value >= 1024 and unit_index < len(units) - 1:
+                value /= 1024
+                unit_index += 1
+            speed_text = f"{value:.1f} {units[unit_index]}"
+        bar = build_progress_bar(percent)
+        sys.stdout.write(f"\r\033[2K{percent:3.0f}% {bar} ETA {eta} S {speed_text}")
+        sys.stdout.flush()
+    elif progress.get("status") == "finished":
+        sys.stdout.write("\r\033[2K100% [████████████] ETA 00:00 S --")
+        sys.stdout.flush()
+
+
+def download_youtube_media(url, folder_path, quality, media_type):
+    output_template = os.path.join(folder_path, "%(title)s.%(ext)s")
+    options = {
+        "outtmpl": output_template,
+        "noplaylist": not is_playlist_url(url),
+        "quiet": True,
+        "no_warnings": True,
+        "noprogress": True,
+        "progress_hooks": [download_progress_hook],
+    }
+
+    if media_type == "audio":
+        options.update(
+            {
+                "format": "bestaudio/best",
+                "postprocessors": [
+                    {
+                        "key": "FFmpegExtractAudio",
+                        "preferredcodec": "mp3",
+                        "preferredquality": "192",
+                    }
+                ],
+            }
+        )
     else:
-        streams = yt.streams.filter(progressive=True)
+        height = parse_quality(quality)
+        available_heights = get_available_video_heights(url)
+        if height not in available_heights:
+            available = ", ".join(
+                format_quality_label(value) for value in sorted(available_heights)
+            )
+            print(f"{format_quality_label(height)} is not available for this video.")
+            print(f"Available video qualities: {available}")
+            return
 
-        # Get the stream based on the quality
-        stream = streams.filter(resolution=quality).first()
+        options.update(
+            {
+                "format": f"bestvideo[height={height}]+bestaudio/best[height={height}]",
+                "merge_output_format": "mp4",
+            }
+        )
 
-        # Check if the stream is not None
-        if stream is not None:
-            # Download the stream
-            print(f"Downloading...")
-            stream.download(output_path=folder_path)
-            print(f"Download completed!")
-        else:
-            print(f"No stream with quality {quality} was found.")
+    with YoutubeDL(options) as ydl:
+        print("Downloading full video...")
+        ydl.download([url])
+        sys.stdout.write("\n")
+        print("Download completed!")
 
-def download_youtube_playlist(playlist_url,folder_path,quality,media_type):
-    try:
-        playlist = Playlist(playlist_url)
-        i = 0
-        for url in playlist:
-            video_title = YouTube(url).title
-            video_size = YouTube(url).streams.filter(resolution=quality).first().filesize/(1024*1024)
-            print(f"Video title: {video_title} \nVideo size: {'%.2f' % video_size} MB")
-            download_youtube_video(url,folder_path,quality,media_type,i)
-            print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-            i += 1
-    except Exception as e:
-        print(e)
 
-playlist_url = input('Enter the URL of the YouTube playlist: ')
-folder_path = input('Enter the path of the folder where you want to save the videos: ')
-media_type = input('Enter the media type (audio or video): ')
-if media_type == 'video':
-    quality = input('Enter the quality of the video (e.g. 720p, 1080p): ')
+url = input("Enter the URL of the YouTube video or playlist: ")
+folder_path = input("Enter the path of the folder where you want to save the videos: ")
+media_type = input("Enter the media type (audio or video): ")
+
+if media_type == "video":
+    quality = prompt_quality()
 else:
     quality = None
 
-# Create the folder if it doesn't exist
 if not os.path.exists(folder_path):
     os.makedirs(folder_path)
 
-# Download the playlist
-download_youtube_playlist(playlist_url,folder_path,quality,media_type)
+download_youtube_media(url, folder_path, quality, media_type)
