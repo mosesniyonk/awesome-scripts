@@ -36,8 +36,3 @@ You'll be prompted for:
 - Download folder path
 - Media type (audio or video)
 - Video quality if choosing video (e.g., 720p, 1080p)
-
-## Fixed Issues
-
-- ✅ Switched to `yt-dlp` for more reliable downloads
-- ✅ Updated the CLI to accept a single video URL or a playlist
